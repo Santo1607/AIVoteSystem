@@ -459,32 +459,45 @@ const VoterForm = ({
                       <div className="flex items-center mb-3 w-full">
                         <Camera className="h-5 w-5 text-primary mr-2" />
                         <h3 className="text-lg font-medium">Profile Photo</h3>
+                        {profileImage && (
+                          <span className="ml-2 bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-xs">Captured</span>
+                        )}
                       </div>
                       
                       <Separator className="my-2" />
                       
                       <div className="w-full">
-                        <div className="p-4 border-2 border-dashed border-primary rounded-lg bg-blue-50 mt-4">
+                        <div className={`p-4 border-2 border-dashed ${profileImage ? 'border-green-300 bg-green-50' : 'border-primary bg-blue-50'} rounded-lg mt-4`}>
                           {profileImage ? (
                             <div className="flex flex-col items-center">
                               <img 
                                 src={profileImage} 
                                 alt="Profile" 
-                                className="h-48 w-full object-cover mb-4 rounded-md"
+                                className="h-64 w-full object-contain mb-4 rounded-md border border-gray-200"
                               />
-                              <Button 
-                                variant="outline" 
-                                onClick={() => setProfileImage(null)}
-                              >
-                                Capture Again
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => {
+                                    setProfileImage(null);
+                                    form.setValue("profileImage", "");
+                                  }}
+                                >
+                                  Capture Again
+                                </Button>
+                              </div>
                             </div>
                           ) : (
-                            <Webcam 
-                              onCapture={handleImageCapture} 
-                              width={isMobile ? 300 : 400}
-                              height={isMobile ? 200 : 300}
-                            />
+                            <>
+                              <p className="text-sm text-neutral-600 mb-4 text-center">
+                                Capture the voter's photo for identification and biometric authentication
+                              </p>
+                              <Webcam 
+                                onCapture={handleImageCapture} 
+                                width={isMobile ? 300 : 400}
+                                height={isMobile ? 200 : 300}
+                              />
+                            </>
                           )}
                         </div>
                         {form.formState.errors.profileImage && (
@@ -499,34 +512,54 @@ const VoterForm = ({
                       <div className="flex items-center mb-3 w-full">
                         <Fingerprint className="h-5 w-5 text-primary mr-2" />
                         <h3 className="text-lg font-medium">Fingerprint</h3>
+                        {fingerprintData && (
+                          <span className="ml-2 bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-xs">Scanned</span>
+                        )}
                       </div>
                       
                       <Separator className="my-2" />
                       
                       <div className="w-full flex flex-col items-center mt-4">
-                        <p className="text-sm text-neutral-600 mb-4">Scan the voter's right thumb fingerprint</p>
+                        <p className="text-sm text-neutral-600 mb-4">Scan the voter's right thumb fingerprint for biometric verification</p>
                         <FingerprintScanner 
                           onScan={handleFingerprintScan} 
                           isVerified={!!fingerprintData}
+                          autoScan={false}
                         />
-                        {!fingerprintData && (
+                        {!fingerprintData ? (
                           <p className="text-xs text-neutral-500 mt-4">
-                            Press the fingerprint icon to simulate a scan
+                            Click on the fingerprint icon to scan
                           </p>
+                        ) : (
+                          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md w-full max-w-md">
+                            <p className="text-sm text-green-700 flex items-center gap-2">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                              </svg>
+                              Fingerprint successfully scanned and recorded
+                            </p>
+                          </div>
                         )}
                       </div>
                     </CardContent>
                   </Card>
                 </div>
 
+                {/* Hidden form field to store profile image */}
                 <FormField
                   control={form.control}
                   name="profileImage"
                   render={({ field }) => (
                     <FormItem className="hidden">
                       <FormControl>
-                        <Input {...field} type="hidden" />
+                        <Input 
+                          type="hidden" 
+                          {...field}
+                          value={profileImage ? profileImage : ""} 
+                        />
                       </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
