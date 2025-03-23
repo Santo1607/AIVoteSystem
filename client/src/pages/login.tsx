@@ -3,94 +3,97 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoginVoter, LoginAdmin, loginVoterSchema, loginAdminSchema } from "@shared/schema";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
+import { AlertCircle } from "lucide-react";
 
 interface LoginPageProps {
   onLogin: (sessionData: any) => void;
 }
 
+// Define a combined schema for a unified login form
+const unifiedLoginSchema = z.object({
+  identifier: z.string().min(1, "User ID is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+type UnifiedLoginData = z.infer<typeof unifiedLoginSchema>;
+
 const LoginPage = ({ onLogin }: LoginPageProps) => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"voter" | "admin">("voter");
   const [isLoading, setIsLoading] = useState(false);
   const [, setLocation] = useLocation();
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Voter form
-  const voterForm = useForm<LoginVoter>({
-    resolver: zodResolver(loginVoterSchema),
+  // Unified login form
+  const form = useForm<UnifiedLoginData>({
+    resolver: zodResolver(unifiedLoginSchema),
     defaultValues: {
-      voterId: "",
+      identifier: "",
       password: "",
     },
   });
 
-  // Admin form
-  const adminForm = useForm<LoginAdmin>({
-    resolver: zodResolver(loginAdminSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
-  });
-
-  // Handle voter login
-  const handleVoterLogin = async (data: LoginVoter) => {
+  // Handle unified login
+  const handleLogin = async (data: UnifiedLoginData) => {
     setIsLoading(true);
+    setLoginError(null);
+    
     try {
-      const response = await apiRequest("POST", "/api/auth/voter/login", data);
-      const result = await response.json();
-      
-      toast({
-        title: "Login Successful",
-        description: "Welcome to the AI Voting System",
-      });
-      
-      onLogin({
-        type: "voter",
-        user: result.voter,
-      });
-      
-      setLocation("/personal-details");
+      // First try admin login
+      try {
+        const adminResponse = await apiRequest("POST", "/api/auth/admin/login", {
+          username: data.identifier, 
+          password: data.password
+        });
+        
+        const adminResult = await adminResponse.json();
+        
+        toast({
+          title: "Admin Login Successful",
+          description: "Welcome to the Admin Dashboard",
+        });
+        
+        onLogin({
+          type: "admin",
+          user: adminResult.admin,
+        });
+        
+        setLocation("/admin");
+        return; // Exit if admin login was successful
+      } catch (adminError) {
+        // If admin login fails, try voter login
+        try {
+          const voterResponse = await apiRequest("POST", "/api/auth/voter/login", {
+            voterId: data.identifier,
+            password: data.password
+          });
+          
+          const voterResult = await voterResponse.json();
+          
+          toast({
+            title: "Login Successful",
+            description: "Welcome to the AI Voting System",
+          });
+          
+          onLogin({
+            type: "voter",
+            user: voterResult.voter,
+          });
+          
+          setLocation("/personal-details");
+        } catch (voterError) {
+          // Both login attempts failed
+          throw new Error("Invalid login credentials");
+        }
+      }
     } catch (error) {
       console.error("Login error:", error);
-      toast({
-        title: "Login Failed",
-        description: error instanceof Error ? error.message : "Invalid credentials",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle admin login
-  const handleAdminLogin = async (data: LoginAdmin) => {
-    setIsLoading(true);
-    try {
-      const response = await apiRequest("POST", "/api/auth/admin/login", data);
-      const result = await response.json();
-      
-      toast({
-        title: "Admin Login Successful",
-        description: "Welcome to the Admin Dashboard",
-      });
-      
-      onLogin({
-        type: "admin",
-        user: result.admin,
-      });
-      
-      setLocation("/admin");
-    } catch (error) {
-      console.error("Admin login error:", error);
+      setLoginError(error instanceof Error ? error.message : "Invalid credentials");
       toast({
         title: "Login Failed",
         description: error instanceof Error ? error.message : "Invalid credentials",
@@ -102,122 +105,74 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   };
 
   return (
-    <div className="max-w-md mx-auto">
+    <div className="max-w-md mx-auto px-4 sm:px-0">
       <Card className="shadow-lg">
         <CardHeader className="bg-primary text-white py-4">
-          <h2 className="text-xl font-medium">Login</h2>
+          <h2 className="text-xl font-medium text-center">AI Voting System</h2>
+          <p className="text-xs text-center mt-1 text-white/80">Please login with your credentials</p>
         </CardHeader>
         
         <CardContent className="p-6">
-          <Tabs 
-            defaultValue="voter" 
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as "voter" | "admin")}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="voter">Voter Login</TabsTrigger>
-              <TabsTrigger value="admin">Admin Login</TabsTrigger>
-            </TabsList>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-4">
+              {loginError && (
+                <div className="bg-red-50 text-red-800 p-3 rounded-md flex items-start text-sm mb-4">
+                  <AlertCircle className="h-5 w-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                  <p>{loginError}</p>
+                </div>
+              )}
             
-            <TabsContent value="voter">
-              <Form {...voterForm}>
-                <form onSubmit={voterForm.handleSubmit(handleVoterLogin)} className="space-y-4">
-                  <FormField
-                    control={voterForm.control}
-                    name="voterId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Voter ID</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Enter your Voter ID" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={voterForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password / Date of Birth (DD/MM/YYYY)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="password" 
-                            placeholder="Enter your Password or DOB" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Logging in..." : "Login"}
-                  </Button>
-                </form>
-              </Form>
-            </TabsContent>
-            
-            <TabsContent value="admin">
-              <Form {...adminForm}>
-                <form onSubmit={adminForm.handleSubmit(handleAdminLogin)} className="space-y-4">
-                  <FormField
-                    control={adminForm.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Admin Username</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Enter admin username" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={adminForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Admin Password</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="password" 
-                            placeholder="Enter admin password" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Logging in..." : "Admin Login"}
-                  </Button>
-                </form>
-              </Form>
-            </TabsContent>
-          </Tabs>
+              <FormField
+                control={form.control}
+                name="identifier"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>User ID</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Voter ID or Admin Username" 
+                        {...field}
+                        autoComplete="username"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Password or Date of Birth (DD/MM/YYYY)" 
+                        {...field}
+                        autoComplete="current-password"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <Button 
+                type="submit" 
+                className="w-full mt-2"
+                disabled={isLoading}
+              >
+                {isLoading ? "Logging in..." : "Login"}
+              </Button>
+              
+              <p className="text-sm text-neutral-500 text-center pt-2">
+                Admin: Use admin/admin123<br />
+                Voter: Use ABCD1234567/15/08/1985
+              </p>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>
