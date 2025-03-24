@@ -1,222 +1,145 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.9;
 
 contract VotingSystem {
-    // Admin address who deploys the contract
-    address public admin;
+    address private owner;
     
-    // Voting state
-    bool public votingOpen;
-    bool public resultsReleased;
+    // Election state
+    // 0: Not started
+    // 1: Voting in progress
+    // 2: Voting ended, results pending
+    // 3: Results released
+    uint256 public electionState;
     
-    // Candidate struct
     struct Candidate {
-        uint id;
+        uint256 id;
         string name;
         string partyName;
-        bytes32 partyLogo; // Hash of the party logo (for reference)
-        uint voteCount;
+        string partyLogo; // URL or hash to the logo
+        uint256 voteCount;
     }
     
-    // Mapping from candidate ID to Candidate
-    mapping(uint => Candidate) public candidates;
+    mapping(uint256 => Candidate) private candidates;
+    uint256[] private candidateIds;
     
-    // Array of candidate IDs
-    uint[] public candidateIds;
+    // Voter status tracking (hash of voter ID -> has voted)
+    mapping(bytes32 => bool) private voterStatus;
     
-    // Mapping to check if a voter has voted
-    mapping(string => bool) private hasVoted;
-    
-    // Encrypted vote logs (voterID hash => encrypted vote data)
-    mapping(bytes32 => bytes) private voteRecords;
+    // Encrypted vote data for audit (hash of voter ID -> encrypted data)
+    mapping(bytes32 => bytes) private voteData;
     
     // Events
-    event VoterRegistered(bytes32 indexed voterIdHash);
-    event VoteCast(bytes32 indexed voterIdHash);
-    event VotingStarted();
-    event VotingEnded();
-    event ResultsReleased();
+    event VoteCast(bytes32 indexed voterIdHash, uint256 candidateId);
+    event ElectionStateChanged(uint256 state);
+    event CandidateAdded(uint256 id, string name, string partyName);
+    
+    constructor() {
+        owner = msg.sender;
+        electionState = 0; // Not started
+    }
     
     // Modifiers
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Only admin can perform this action");
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can perform this action");
         _;
     }
     
-    modifier votingIsOpen() {
-        require(votingOpen, "Voting is not open");
+    modifier electionNotStarted() {
+        require(electionState == 0, "Election has already started");
         _;
     }
     
-    modifier resultsAreReleased() {
-        require(resultsReleased, "Results have not been released yet");
+    modifier electionInProgress() {
+        require(electionState == 1, "Voting is not in progress");
         _;
     }
     
-    // Constructor
-    constructor() {
-        admin = msg.sender;
-        votingOpen = false;
-        resultsReleased = false;
+    modifier electionEnded() {
+        require(electionState == 2, "Voting has not ended");
+        _;
     }
     
-    // Add a candidate (only admin can add)
-    function addCandidate(uint _id, string memory _name, string memory _partyName, bytes32 _logoHash) 
-        public 
-        onlyAdmin 
-    {
-        require(candidates[_id].id == 0, "Candidate already exists");
-        
-        Candidate memory newCandidate = Candidate({
-            id: _id,
-            name: _name,
-            partyName: _partyName,
-            partyLogo: _logoHash,
-            voteCount: 0
-        });
-        
-        candidates[_id] = newCandidate;
-        candidateIds.push(_id);
+    modifier resultsReleased() {
+        require(electionState == 3, "Results have not been released");
+        _;
     }
     
-    // Start voting
-    function startVoting() public onlyAdmin {
-        votingOpen = true;
-        emit VotingStarted();
+    // Election management functions
+    
+    function addCandidate(uint256 id, string memory name, string memory partyName, string memory partyLogo) public onlyOwner electionNotStarted {
+        candidates[id] = Candidate(id, name, partyName, partyLogo, 0);
+        candidateIds.push(id);
+        emit CandidateAdded(id, name, partyName);
     }
     
-    // End voting
-    function endVoting() public onlyAdmin {
-        votingOpen = false;
-        emit VotingEnded();
+    function startVoting() public onlyOwner electionNotStarted {
+        electionState = 1; // Voting in progress
+        emit ElectionStateChanged(electionState);
     }
     
-    // Release results
-    function releaseResults() public onlyAdmin {
-        resultsReleased = true;
-        emit ResultsReleased();
+    function endVoting() public onlyOwner electionInProgress {
+        electionState = 2; // Voting ended, results pending
+        emit ElectionStateChanged(electionState);
     }
     
-    // Cast a vote - uses voterID hash and encrypted vote data
-    function castVote(bytes32 _voterIdHash, uint _candidateId, bytes memory _encryptedVoteData) 
-        public 
-        votingIsOpen 
-    {
-        // Check if voter hasn't voted yet (using the hash of their ID)
-        require(!hasVoted[bytes32ToString(_voterIdHash)], "Voter has already cast a vote");
+    function releaseResults() public onlyOwner electionEnded {
+        electionState = 3; // Results released
+        emit ElectionStateChanged(electionState);
+    }
+    
+    // Voting functions
+    
+    function castVote(bytes32 voterIdHash, uint256 candidateId, bytes memory encryptedData) public electionInProgress {
+        // Check if voter has already voted
+        require(!voterStatus[voterIdHash], "Voter has already cast a vote");
         
         // Check if candidate exists
-        require(candidates[_candidateId].id > 0, "Candidate does not exist");
+        require(candidates[candidateId].id == candidateId, "Candidate does not exist");
         
         // Record vote
-        candidates[_candidateId].voteCount++;
-        hasVoted[bytes32ToString(_voterIdHash)] = true;
+        candidates[candidateId].voteCount++;
+        voterStatus[voterIdHash] = true;
+        voteData[voterIdHash] = encryptedData;
         
-        // Store encrypted vote record for audit
-        voteRecords[_voterIdHash] = _encryptedVoteData;
-        
-        emit VoteCast(_voterIdHash);
+        emit VoteCast(voterIdHash, candidateId);
     }
     
-    // Get candidate information
-    function getCandidate(uint _id) 
-        public 
-        view 
-        returns (uint id, string memory name, string memory partyName, uint voteCount) 
-    {
-        Candidate memory candidate = candidates[_id];
-        
-        if (resultsReleased) {
-            return (
-                candidate.id,
-                candidate.name,
-                candidate.partyName,
-                candidate.voteCount
-            );
-        } else {
-            return (
-                candidate.id,
-                candidate.name,
-                candidate.partyName,
-                0 // Don't reveal vote count until results are released
-            );
-        }
+    // Query functions
+    
+    function checkVoterStatus(bytes32 voterIdHash) public view returns (bool) {
+        return voterStatus[voterIdHash];
     }
     
-    // Get vote record (only admin)
-    function getVoteRecord(bytes32 _voterIdHash) 
-        public 
-        view 
-        onlyAdmin 
-        returns (bytes memory) 
-    {
-        return voteRecords[_voterIdHash];
+    function getCandidate(uint256 id) public view returns (uint256, string memory, string memory, uint256) {
+        Candidate memory candidate = candidates[id];
+        uint256 votes = electionState == 3 ? candidate.voteCount : 0; // Only show votes if results are released
+        return (candidate.id, candidate.name, candidate.partyName, votes);
     }
     
-    // Check if a voter has voted (only admin)
-    function checkVoterStatus(bytes32 _voterIdHash) 
-        public 
-        view 
-        onlyAdmin 
-        returns (bool) 
-    {
-        return hasVoted[bytes32ToString(_voterIdHash)];
-    }
-    
-    // Get all candidates
-    function getAllCandidates() 
-        public 
-        view 
-        returns (uint[] memory ids, string[] memory names, string[] memory partyNames, uint[] memory voteCounts) 
-    {
-        uint candidateCount = candidateIds.length;
+    function getAllCandidates() public view returns (uint256[] memory, string[] memory, string[] memory, uint256[] memory) {
+        uint256 count = candidateIds.length;
+        uint256[] memory ids = new uint256[](count);
+        string[] memory names = new string[](count);
+        string[] memory partyNames = new string[](count);
+        uint256[] memory voteCounts = new uint256[](count);
         
-        ids = new uint[](candidateCount);
-        names = new string[](candidateCount);
-        partyNames = new string[](candidateCount);
-        voteCounts = new uint[](candidateCount);
-        
-        for (uint i = 0; i < candidateCount; i++) {
-            uint candidateId = candidateIds[i];
-            Candidate memory candidate = candidates[candidateId];
-            
+        for (uint256 i = 0; i < count; i++) {
+            uint256 id = candidateIds[i];
+            Candidate memory candidate = candidates[id];
             ids[i] = candidate.id;
             names[i] = candidate.name;
             partyNames[i] = candidate.partyName;
-            
-            if (resultsReleased) {
-                voteCounts[i] = candidate.voteCount;
-            } else {
-                voteCounts[i] = 0; // Don't reveal vote count until results are released
-            }
+            voteCounts[i] = electionState == 3 ? candidate.voteCount : 0; // Only show votes if results are released
         }
         
         return (ids, names, partyNames, voteCounts);
     }
     
-    // Get total votes cast (only available after results are released)
-    function getTotalVotes() 
-        public 
-        view 
-        resultsAreReleased 
-        returns (uint totalVotes) 
-    {
-        totalVotes = 0;
-        
-        for (uint i = 0; i < candidateIds.length; i++) {
-            uint candidateId = candidateIds[i];
-            totalVotes += candidates[candidateId].voteCount;
+    function getTotalVotes() public view resultsReleased returns (uint256) {
+        uint256 total = 0;
+        for (uint256 i = 0; i < candidateIds.length; i++) {
+            total += candidates[candidateIds[i]].voteCount;
         }
-        
-        return totalVotes;
-    }
-    
-    // Helper function to convert bytes32 to string
-    function bytes32ToString(bytes32 _bytes32) private pure returns (string memory) {
-        bytes memory bytesArray = new bytes(32);
-        for (uint256 i; i < 32; i++) {
-            bytesArray[i] = _bytes32[i];
-        }
-        return string(bytesArray);
+        return total;
     }
 }
