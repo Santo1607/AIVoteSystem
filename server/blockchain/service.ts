@@ -244,10 +244,8 @@ export class BlockchainService {
     if (this.initialized) return;
     
     try {
-      // Set up mock state first for development mode
-      if (process.env.NODE_ENV === 'development') {
-        this.simulateBlockchain();
-      }
+      // Always set up mock state for simulation fallback
+      this.simulateBlockchain();
       
       // In development, we'll deploy a new contract each time
       // In production, we would use a deployed contract address

@@ -13,8 +13,12 @@ export async function initializeBlockchain() {
       
       // Start voting by default in development mode
       if (process.env.NODE_ENV === 'development') {
-        await blockchainService.startVoting();
-        console.log('Voting has been started in blockchain (development mode)');
+        try {
+          await blockchainService.startVoting();
+          console.log('Voting has been started in blockchain (development mode)');
+        } catch (votingError) {
+          console.error('Failed to start voting on blockchain, continuing in simulation mode:', votingError);
+        }
       }
     } catch (error) {
       console.error('Failed to initialize blockchain service:', error);
