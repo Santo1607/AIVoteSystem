@@ -13,6 +13,8 @@ import { fromZodError } from "zod-validation-error";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import { z } from "zod";
+import { initializeBlockchain } from "./blockchain/controller";
+import * as blockchainController from "./blockchain/controller";
 
 // Create a memory store for sessions
 const memoryStore = MemoryStore(session);
@@ -350,6 +352,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } else {
       return res.status(401).json({ message: "Not authenticated" });
     }
+  });
+
+  // Blockchain routes
+  // Start voting (admin only)
+  app.post("/api/blockchain/voting/start", isAdminAuthenticated, blockchainController.startVoting);
+  
+  // End voting (admin only)
+  app.post("/api/blockchain/voting/end", isAdminAuthenticated, blockchainController.endVoting);
+  
+  // Release results (admin only)
+  app.post("/api/blockchain/results/release", isAdminAuthenticated, blockchainController.releaseResults);
+  
+  // Cast a vote on the blockchain
+  app.post("/api/blockchain/vote", isVoterAuthenticated, blockchainController.castVote);
+  
+  // Get candidates with vote counts (if results are released)
+  app.get("/api/blockchain/candidates", blockchainController.getCandidates);
+  
+  // Get total votes (only if results are released)
+  app.get("/api/blockchain/votes/total", blockchainController.getTotalVotes);
+  
+  // Check if a voter has already voted (admin only)
+  app.get("/api/blockchain/voter/:voterId/status", isAdminAuthenticated, blockchainController.checkVoterStatus);
+  
+  // Initialize blockchain when server starts
+  initializeBlockchain().catch(err => {
+    console.error('Failed to initialize blockchain:', err);
   });
 
   // Create http server

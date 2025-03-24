@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { Vote } from 'lucide-react';
+import { Vote, ShieldCheck, Lock, CheckCircle2 } from 'lucide-react';
 
 const ThankYou = () => {
   const [, setLocation] = useLocation();

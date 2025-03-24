@@ -34,29 +34,48 @@ const Voting = () => {
     queryKey: ["/api/candidates"],
   });
 
-  // Cast vote mutation
+  // Cast vote mutation - uses both traditional database and blockchain
   const voteMutation = useMutation({
     mutationFn: async () => {
       if (!voter || !selectedCandidate) return;
       
-      const response = await apiRequest("POST", "/api/vote", {
+      // First record vote in database
+      const dbResponse = await apiRequest("POST", "/api/vote", {
         voterId: voter.voterId,
         candidateId: selectedCandidate.id,
       });
       
-      return response.json();
+      // Then record vote on blockchain for added security and immutability
+      const blockchainResponse = await apiRequest("POST", "/api/blockchain/vote", {
+        voterId: voter.voterId,
+        candidateId: selectedCandidate.id,
+      });
+      
+      // Both operations need to succeed
+      const dbResult = await dbResponse.json();
+      const blockchainResult = await blockchainResponse.json();
+      
+      return { 
+        dbResult, 
+        blockchainResult,
+        success: dbResponse.ok && blockchainResponse.ok
+      };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate queries to refresh data
       queryClient.invalidateQueries({
         queryKey: [`/api/voters/${voter?.voterId}`],
       });
       queryClient.invalidateQueries({
         queryKey: ["/api/candidates"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/blockchain/candidates"],
+      });
       
       toast({
         title: "Vote Cast Successfully",
-        description: "Thank you for participating in the election.",
+        description: "Your vote has been securely recorded on the blockchain.",
       });
       
       setLocation("/thank-you");
@@ -64,7 +83,7 @@ const Voting = () => {
     onError: (error) => {
       toast({
         title: "Failed to Cast Vote",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Your vote may not have been recorded on the blockchain.",
         variant: "destructive",
       });
     },

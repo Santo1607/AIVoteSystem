@@ -45,8 +45,15 @@ const VoteConfirmationModal = ({
             </div>
           </div>
           
-          <div className="bg-yellow-50 p-3 rounded mb-6 text-neutral-700 text-sm">
-            <p>Your vote is final and cannot be changed after confirmation.</p>
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6 text-neutral-700 text-sm">
+            <h5 className="text-primary-600 font-medium mb-1">Blockchain-Secured Voting</h5>
+            <p className="mb-2">Your vote will be:</p>
+            <ul className="list-disc list-inside space-y-1 text-neutral-600">
+              <li>Recorded securely on the blockchain</li>
+              <li>Protected from tampering and manipulation</li>
+              <li>Verifiable without revealing your identity</li>
+              <li>Final and cannot be changed after confirmation</li>
+            </ul>
           </div>
         </div>
         
