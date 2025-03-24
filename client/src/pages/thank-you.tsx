@@ -26,11 +26,38 @@ const ThankYou = () => {
             Your vote has been successfully recorded.
           </p>
           
-          <div className="max-w-md mx-auto bg-neutral-100 p-4 rounded mb-6 text-left">
-            <p className="text-sm text-neutral-600">
+          <div className="max-w-md mx-auto p-0 rounded mb-6 text-left">
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-t flex items-center">
+              <ShieldCheck className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0" />
+              <div>
+                <h4 className="font-medium text-blue-700">Blockchain Security</h4>
+                <p className="text-sm text-blue-600">
+                  Your vote has been securely recorded on the blockchain
+                </p>
+              </div>
+            </div>
+            
+            <div className="border border-t-0 border-neutral-200 p-4 rounded-b">
+              <div className="grid grid-cols-1 gap-3 text-sm">
+                <div className="flex items-start">
+                  <Lock className="h-4 w-4 text-neutral-500 mr-2 mt-0.5 flex-shrink-0" />
+                  <p className="text-neutral-600">
+                    Your vote is encrypted and tamper-proof
+                  </p>
+                </div>
+                <div className="flex items-start">
+                  <CheckCircle2 className="h-4 w-4 text-neutral-500 mr-2 mt-0.5 flex-shrink-0" />
+                  <p className="text-neutral-600">
+                    Blockchain technology prevents vote manipulation and ensures integrity
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-4 bg-neutral-100 p-3 rounded text-sm text-neutral-600">
               A confirmation has been sent to your registered email address.
               This serves as proof of your participation in the election.
-            </p>
+            </div>
           </div>
           
           <Button onClick={handleFinish} className="px-6 py-2">

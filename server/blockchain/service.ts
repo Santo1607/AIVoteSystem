@@ -9,8 +9,9 @@ import crypto from 'crypto';
 // Function to compile the Solidity contract
 function compileContract() {
   try {
-    // Read the contract source code
-    const contractPath = path.resolve(__dirname, '../../contracts/VotingSystem.sol');
+    // In ESM, __dirname is not defined, so we need to use import.meta.url
+    // Get the current file's directory
+    const contractPath = path.resolve(process.cwd(), 'contracts/VotingSystem.sol');
     const source = fs.readFileSync(contractPath, 'utf8');
     
     // Prepare input for solc compiler
@@ -47,7 +48,7 @@ function compileContract() {
 
 export class BlockchainService {
   private web3: Web3;
-  private contract: Contract | null = null;
+  private contract: Contract<any> | null = null;
   private contractAddress: string | null = null;
   private contractAbi: AbiItem[] | null = null;
   private initialized: boolean = false;
