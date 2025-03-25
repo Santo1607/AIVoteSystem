@@ -1,7 +1,12 @@
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
+import { fileURLToPath } from "url"; // ✅ Fix for __dirname in ES Modules
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+// Fix __dirname for ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
@@ -46,7 +51,7 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // 🔹 Serve frontend files in production
+  // ✅ Serve frontend files in production (Fix for ES Modules)
   if (process.env.NODE_ENV === "production") {
     const frontendPath = path.resolve(__dirname, "../client/dist");
     app.use(express.static(frontendPath));
@@ -59,7 +64,7 @@ app.use((req, res, next) => {
     await setupVite(app, server); // Only setup Vite in development
   }
 
-  // 🔹 Use environment-provided port (important for Render)
+  // ✅ Use environment-provided port (important for Render)
   const PORT = process.env.PORT || 5000;
   server.listen(PORT, "0.0.0.0", () => {
     log(`🚀 Server running on port ${PORT}`);
