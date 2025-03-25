@@ -9,6 +9,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export default defineConfig({
+  server: {
+    proxy: {
+      "/api": "https://your-backend-service.onrender.com",
+    },
+  },
   plugins: [
     react(),
     runtimeErrorOverlay(),
