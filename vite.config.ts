@@ -24,7 +24,8 @@ export default defineConfig({
   plugins,
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "client/src"), // ✅ Keep alias for src
+       "@": path.resolve(__dirname, "client", "src"),
+       "@shared": path.resolve(__dirname, "shared"),
     },
   },
   build: {
