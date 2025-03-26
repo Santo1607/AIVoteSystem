@@ -7,7 +7,7 @@ channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "npm run start"]
+run = ["sh", "-c", "node dist/server/index.js"]
 build = ["sh", "-c", "npm run build"]
 
 [[ports]]
@@ -48,4 +48,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
+args = "tsx api/index.ts"
