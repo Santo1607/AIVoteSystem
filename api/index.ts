@@ -65,7 +65,7 @@ app.use((req, res, next) => {
   }
 
   // ✅ Use environment-provided port (important for Render)
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 10000;
   server.listen(PORT, "0.0.0.0", () => {
     log(`🚀 Server running on port ${PORT} (http://0.0.0.0:${PORT})`);
   });
