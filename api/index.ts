@@ -3,6 +3,8 @@ import path from "path";
 import { fileURLToPath } from "url"; // ✅ Fix for __dirname in ES Modules
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import dotenv from "dotenv"
+dotenv.config();
 
 // Fix __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
