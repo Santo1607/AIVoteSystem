@@ -48,4 +48,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "tsx api/index.ts"
+args = "NODE_ENV=development tsx api/index.ts"
